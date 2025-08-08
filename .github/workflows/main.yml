@@ -11,11 +11,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Docker Compose plugin (runner)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y docker-compose-plugin
-
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -23,18 +18,19 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy and restart (remote)
+      - name: Deploy and restart
         run: |
           ssh -i ~/.ssh/id_rsa ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
             set -e
 
             cd ${{ secrets.DEPLOY_PATH }}
 
-            # リモート上で Docker Compose プラグインをインストール
-            sudo apt-get update
-            sudo apt-get install -y docker-compose-plugin
+            # Install Docker Compose binary on remote
+            curl -SL https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64 -o docker-compose
+            chmod +x docker-compose
+            sudo mv docker-compose /usr/local/bin/docker-compose
 
-            # コンテナの更新と起動
-            docker compose pull
-            docker compose up -d --build
+            # Pull and restart containers
+            docker-compose pull
+            docker-compose up -d --build
           EOF
